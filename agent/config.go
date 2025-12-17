@@ -53,19 +53,39 @@ type UserConfig struct {
 	WorkingDir string `toml:"working_dir"`
 }
 
+// DefaultConfigDir is the default location for config files in containers.
+const DefaultConfigDir = "/etc/wise"
+
 // LoadUserConfig reads user configuration from a TOML file.
+// It searches in order: provided dir, current directory, /etc/wise
 func LoadUserConfig(dir string) (*UserConfig, error) {
 	var cfg UserConfig
 
-	configPath := filepath.Join(dir, "config.toml")
+	// Search paths in order of preference
+	searchPaths := []string{}
+	if dir != "" {
+		searchPaths = append(searchPaths, filepath.Join(dir, "config.toml"))
+	}
+	searchPaths = append(searchPaths,
+		"config.toml",                              // current directory
+		filepath.Join(DefaultConfigDir, "config.toml"), // container default
+	)
 
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("config file not found: %s", configPath)
+	var configPath string
+	for _, path := range searchPaths {
+		if _, err := os.Stat(path); err == nil {
+			configPath = path
+			break
+		}
+	}
+
+	if configPath == "" {
+		return nil, fmt.Errorf("config file not found (searched: %v)", searchPaths)
 	}
 
 	_, err := toml.DecodeFile(configPath, &cfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load user config: %w", err)
+		return nil, fmt.Errorf("failed to load user config from %s: %w", configPath, err)
 	}
 
 	return &cfg, nil

@@ -4,3 +4,7 @@ tasks:
   build:
     cmds:
       - go build -o bin/wise
+
+  docker:
+    cmds:
+      - podman build -t wise:latest .

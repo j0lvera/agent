@@ -13,6 +13,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var cwd string
+
 var runCmd = &cobra.Command{
 	Use:   "run [task]",
 	Short: "Run the agent with a task",
@@ -32,13 +34,17 @@ Examples:
   wise run "List files" --json
 
   # Quiet mode (errors only)
-  wise run "Build the project" -q`,
+  wise run "Build the project" -q
+
+  # Run in a specific directory
+  wise run "List files" -w /path/to/project`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runAgent,
 }
 
 func init() {
 	rootCmd.AddCommand(runCmd)
+	runCmd.Flags().StringVarP(&cwd, "cwd", "w", "", "working directory for command execution")
 }
 
 type RunResult struct {
@@ -55,9 +61,14 @@ func runAgent(cmd *cobra.Command, args []string) error {
 	}
 
 	// Load config
-	cfg, err := agent.LoadConfig(".")
+	cfg, err := agent.LoadConfig("")
 	if err != nil {
 		return handleError(err, "loading config")
+	}
+
+	// Override working directory if flag is set
+	if cwd != "" {
+		cfg.WorkingDir = cwd
 	}
 
 	// Set log level based on flags
